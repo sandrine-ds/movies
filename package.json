@@ -2,15 +2,19 @@
   "name": "movies",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "supabase": "supabase"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.1",
+    "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^16.5.0",
-    "hono": "^4.7.7"
+    "hono": "^4.7.7",
+    "valienv": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",
+    "supabase": "^2.20.12",
     "tsx": "^4.7.1"
   }
 }

@@ -1,10 +1,17 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import dotenv from "dotenv";
+import { createClient } from "@supabase/supabase-js";
+import { env } from "../env.ts";
+import type { Database } from "./types/supabase.ts";
 
-dotenv.config();
+const supabaseUrl = env.SUPABASE_URL;
+const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
-const apiKey = process.env.TRAKT_API_KEY;
+export const supabase = createClient<Database>(
+  supabaseUrl,
+  supabaseServiceRoleKey
+);
+
 const tmdbBearer = process.env.TMDB_BEARER;
 
 const app = new Hono();
@@ -29,7 +36,7 @@ app.get("/movies/popular/:page", async (c) => {
     const res = await fetch(url, options);
 
     if (!res.ok) {
-      return c.json({ ok: false, error: "Erreur lors de la requête à Tmdb" });
+      return c.json({ ok: false, error: "Ooops there's an error" });
     }
 
     const data = await res.json();
@@ -57,7 +64,7 @@ app.get("/movies/upcoming/:page", async (c) => {
     const res = await fetch(url, options);
 
     if (!res.ok) {
-      return c.json({ ok: false, error: "Erreur lors de la requête à Tmdb" });
+      return c.json({ ok: false, error: "Ooops there's an error" });
     }
 
     const data = await res.json();
@@ -85,7 +92,7 @@ app.get("/movies/upcoming/:movieId", async (c) => {
     const res = await fetch(url, options);
 
     if (!res.ok) {
-      return c.json({ ok: false, error: "Erreur lors de la requête à Tmdb" });
+      return c.json({ ok: false, error: "Ooops there's an error" });
     }
 
     const data = await res.json();
@@ -97,27 +104,18 @@ app.get("/movies/upcoming/:movieId", async (c) => {
 
 // SAVED MOVIES
 app.get("/movies/saved", async (c) => {
-  // const url = APICALL/saved;
+  try {
+    const { data, error } = await supabase.from("Saved").select("*");
 
-  const options = {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-      // Authorization: `Bearer ${tmdbBearer}`,
-    },
-  };
-  //   try {
-  //     const res = await fetch(url, options);
+    if (error) {
+      c.json({ ok: false, error: (error as Error).message }, 500);
+    }
+    return c.json({ saved: data });
+  } catch (error) {
+    return c.json({ ok: false, error: (error as Error).message }, 500);
+  }
 
-  //     if (!res.ok) {
-  //       return c.json({ ok: false, error: "Erreur lors de la requête à Tmdb" });
-  //     }
-
-  //     const data = await res.json();
-  //     return c.json({ ok: true, results: data });
-  //   } catch (error) {
-  //     return c.json({ ok: false, error: (error as Error).message }, 500);
-  //   }
+  // TODO: fetch data from TMBD with movie ID
 });
 
 //SEARCH
@@ -139,7 +137,7 @@ app.get("/movies/upcoming/:movieId", async (c) => {
     const res = await fetch(url, options);
 
     if (!res.ok) {
-      return c.json({ ok: false, error: "Erreur lors de la requête à Tmdb" });
+      return c.json({ ok: false, error: "Ooops there's an error" });
     }
 
     const data = await res.json();
@@ -151,27 +149,18 @@ app.get("/movies/upcoming/:movieId", async (c) => {
 
 // RATED MOVIES
 app.get("/movies/rated", async (c) => {
-  // const url = APICALL/rated;
+  try {
+    const { data, error } = await supabase.from("Rated").select("*");
 
-  const options = {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-      // Authorization: `Bearer ${tmdbBearer}`,
-    },
-  };
-  //   try {
-  //     const res = await fetch(url, options);
+    if (error) {
+      c.json({ ok: false, error: (error as Error).message }, 500);
+    }
+    return c.json({ saved: data });
+  } catch (error) {
+    return c.json({ ok: false, error: (error as Error).message }, 500);
+  }
 
-  //     if (!res.ok) {
-  //       return c.json({ ok: false, error: "Erreur lors de la requête à Tmdb" });
-  //     }
-
-  //     const data = await res.json();
-  //     return c.json({ ok: true, results: data });
-  //   } catch (error) {
-  //     return c.json({ ok: false, error: (error as Error).message }, 500);
-  //   }
+  // TODO: fetch data from TMBD with movie ID
 });
 
 serve(
