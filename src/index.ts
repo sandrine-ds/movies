@@ -14,6 +14,14 @@ export const supabase = createClient<Database>(
 
 const tmdbBearer = process.env.TMDB_BEARER;
 
+const options = {
+  method: "GET",
+  headers: {
+    accept: "application/json",
+    Authorization: `Bearer ${tmdbBearer}`,
+  },
+};
+
 const app = new Hono();
 
 export const API_URL = "https://api.themoviedb.org/3";
@@ -23,14 +31,6 @@ app.get("/movies/popular/:page", async (c) => {
   const page = c.req.param("page");
 
   const url = `${API_URL}/movie/popular?language=en-US&page=${page}`;
-
-  const options = {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${tmdbBearer}`,
-    },
-  };
 
   try {
     const res = await fetch(url, options);
@@ -52,14 +52,6 @@ app.get("/movies/upcoming/:page", async (c) => {
 
   const url = `${API_URL}/movie/upcoming?language=en-US&page=${page}`;
 
-  const options = {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${tmdbBearer}`,
-    },
-  };
-
   try {
     const res = await fetch(url, options);
 
@@ -75,18 +67,10 @@ app.get("/movies/upcoming/:page", async (c) => {
 });
 
 // MOVIE BY ID
-app.get("/movies/upcoming/:movieId", async (c) => {
+app.get("/movies/:movieId", async (c) => {
   const movieId = c.req.param("movieId");
 
   const url = `${API_URL}/movie/${movieId}?language=en-US`;
-
-  const options = {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${tmdbBearer}`,
-    },
-  };
 
   try {
     const res = await fetch(url, options);
@@ -103,14 +87,40 @@ app.get("/movies/upcoming/:movieId", async (c) => {
 });
 
 // SAVED MOVIES
-app.get("/movies/saved", async (c) => {
+app.get("/movies/saved/:page", async (c) => {
   try {
-    const { data, error } = await supabase.from("Saved").select("*");
+    const { data: savedData, error: savedError } = await supabase
+      .from("Saved")
+      .select("*");
 
-    if (error) {
-      c.json({ ok: false, error: (error as Error).message }, 500);
+    if (savedError) {
+      c.json({ ok: false, error: (savedError as Error).message }, 500);
     }
-    return c.json({ saved: data });
+
+    //TODO: !!Manage pagination
+    if (savedData !== null) {
+      const fetchedSavedMovies = [];
+
+      for (const movie of savedData) {
+        const url = `${API_URL}/movie/${movie.movie_id}?language=en-US`;
+
+        const tmdbRes = await fetch(url, options);
+        if (!tmdbRes.ok) {
+          return c.json(
+            { ok: false, error: "Failed to fetch movie details" },
+            500
+          );
+        }
+        const tmdbData = await tmdbRes.json();
+        fetchedSavedMovies.push(tmdbData);
+        // return c.json({ ok: true, saved: savedData, movieDetails: tmdbData });
+      }
+      return c.json({
+        ok: true,
+        saved: savedData,
+        savedMoviesList: fetchedSavedMovies,
+      });
+    }
   } catch (error) {
     return c.json({ ok: false, error: (error as Error).message }, 500);
   }
@@ -119,19 +129,11 @@ app.get("/movies/saved", async (c) => {
 });
 
 //SEARCH
-app.get("/movies/upcoming/:movieId", async (c) => {
+app.get("/movies/upcoming/:movieId/:page", async (c) => {
   const query = c.req.param("query");
   const page = c.req.param("page");
 
   const url = `${API_URL}/search/movie?query=${query}&include_adult=false&language=en-US&page=${page}`;
-
-  const options = {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${tmdbBearer}`,
-    },
-  };
 
   try {
     const res = await fetch(url, options);
@@ -150,17 +152,40 @@ app.get("/movies/upcoming/:movieId", async (c) => {
 // RATED MOVIES
 app.get("/movies/rated", async (c) => {
   try {
-    const { data, error } = await supabase.from("Rated").select("*");
+    const { data: ratedData, error: ratedError } = await supabase
+      .from("Rated")
+      .select("*");
 
-    if (error) {
-      c.json({ ok: false, error: (error as Error).message }, 500);
+    if (ratedError) {
+      c.json({ ok: false, error: (ratedError as Error).message }, 500);
     }
-    return c.json({ saved: data });
+
+    //TODO: !!Manage pagination
+    if (ratedData !== null) {
+      const fetchedRatedMovies = [];
+
+      for (const movie of ratedData) {
+        const url = `${API_URL}/movie/${movie.movie_id}?language=en-US`;
+
+        const tmdbRes = await fetch(url, options);
+        if (!tmdbRes.ok) {
+          return c.json(
+            { ok: false, error: "Failed to fetch movie details" },
+            500
+          );
+        }
+        const tmdbData = await tmdbRes.json();
+        fetchedRatedMovies.push(tmdbData);
+      }
+      return c.json({
+        ok: true,
+        saved: ratedData,
+        savedMoviesList: fetchedRatedMovies,
+      });
+    }
   } catch (error) {
     return c.json({ ok: false, error: (error as Error).message }, 500);
   }
-
-  // TODO: fetch data from TMBD with movie ID
 });
 
 serve(
