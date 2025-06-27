@@ -10,6 +10,7 @@
     "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^16.5.0",
     "hono": "^4.7.7",
+    "ts-pattern": "^5.7.0",
     "valienv": "^1.0.0"
   },
   "devDependencies": {

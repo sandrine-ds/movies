@@ -3,9 +3,13 @@ import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "../env.ts";
 import type { Database } from "./types/supabase.ts";
+import { cors } from "hono/cors";
+import { moviesPattern, type Movie } from "../types/types.ts";
+import { isMatching } from "ts-pattern";
 
 const supabaseUrl = env.SUPABASE_URL;
 const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
+// const isValidMoviesResponse = isMatching(moviesPattern);
 
 export const supabase = createClient<Database>(
   supabaseUrl,
@@ -24,6 +28,13 @@ const options = {
 
 const app = new Hono();
 
+app.use("*", cors());
+// app.use(
+//   "/api3/*",
+//   cors({
+//     origin: ["http://localhost:8081"],
+//   })
+// );
 export const API_URL = "https://api.themoviedb.org/3";
 
 // POPULAR
@@ -40,6 +51,13 @@ app.get("/movies/popular/:page", async (c) => {
     }
 
     const data = await res.json();
+
+    // console.log(data);
+
+    // if (!isValidMoviesResponse(data)) {
+    //   return c.json({ ok: false, error: "No valid movies response" });
+    // }
+
     return c.json({ ok: true, results: data });
   } catch (error) {
     return c.json({ ok: false, error: (error as Error).message }, 500);
@@ -60,6 +78,9 @@ app.get("/movies/upcoming/:page", async (c) => {
     }
 
     const data = await res.json();
+    // if (!isValidMoviesResponse(data)) {
+    //   return c.json({ ok: false, error: "Ooops there's an error" });
+    // }
     return c.json({ ok: true, results: data });
   } catch (error) {
     return c.json({ ok: false, error: (error as Error).message }, 500);
@@ -80,6 +101,9 @@ app.get("/movies/:movieId", async (c) => {
     }
 
     const data = await res.json();
+    // if (!isValidMoviesResponse(data)) {
+    //   return c.json({ ok: false, error: "Ooops there's an error" });
+    // }
     return c.json({ ok: true, results: data });
   } catch (error) {
     return c.json({ ok: false, error: (error as Error).message }, 500);
@@ -94,17 +118,22 @@ app.get("/movies/saved/:page", async (c) => {
       .select("*");
 
     if (savedError) {
-      c.json({ ok: false, error: (savedError as Error).message }, 500);
+      return c.json({ ok: false, error: (savedError as Error).message }, 500);
     }
 
     //TODO: !!Manage pagination
+    //Due to API limitation, need to loop for fetching each movie
+
     if (savedData !== null) {
       const fetchedSavedMovies = [];
 
-      for (const movie of savedData) {
-        const url = `${API_URL}/movie/${movie.movie_id}?language=en-US`;
+      const responses = await Promise.all(
+        savedData.map((movie) =>
+          fetch(`${API_URL}/movie/${movie.movie_id}?language=en-US`, options)
+        )
+      );
 
-        const tmdbRes = await fetch(url, options);
+      for (const tmdbRes of responses) {
         if (!tmdbRes.ok) {
           return c.json(
             { ok: false, error: "Failed to fetch movie details" },
@@ -129,9 +158,11 @@ app.get("/movies/saved/:page", async (c) => {
 });
 
 //SEARCH
-app.get("/movies/upcoming/:movieId/:page", async (c) => {
+app.get("/movies/search/:query/:page", async (c) => {
   const query = c.req.param("query");
   const page = c.req.param("page");
+
+  // const url = `https://api.themoviedb.org/3/search/collection?query=star%20wars&include_adult=false&language=en-US&page=${page}`;
 
   const url = `${API_URL}/search/movie?query=${query}&include_adult=false&language=en-US&page=${page}`;
 
@@ -142,7 +173,7 @@ app.get("/movies/upcoming/:movieId/:page", async (c) => {
       return c.json({ ok: false, error: "Ooops there's an error" });
     }
 
-    const data = await res.json();
+    const data: Movie = await res.json();
     return c.json({ ok: true, results: data });
   } catch (error) {
     return c.json({ ok: false, error: (error as Error).message }, 500);
@@ -161,12 +192,12 @@ app.get("/movies/rated", async (c) => {
     }
 
     //TODO: !!Manage pagination
+    //Due to API limitation, need to loop for fetching each movie
     if (ratedData !== null) {
       const fetchedRatedMovies = [];
-
       for (const movie of ratedData) {
         const url = `${API_URL}/movie/${movie.movie_id}?language=en-US`;
-
+        //promise.all
         const tmdbRes = await fetch(url, options);
         if (!tmdbRes.ok) {
           return c.json(
